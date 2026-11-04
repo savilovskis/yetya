@@ -90,6 +90,12 @@
             <div id="peer-name" class="peer-name"></div>
             <div id="peer-status" class="peer-status"></div>
           </div>
+          <button id="call-video-btn" class="icon-btn always call-btn" type="button" aria-label="Видеозвонок">
+            <svg viewBox="0 0 24 24" width="25" height="25"><rect x="2.5" y="6" width="13" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 10.5l5-3v9l-5-3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          </button>
+          <button id="call-audio-btn" class="icon-btn always call-btn" type="button" aria-label="Позвонить">
+            <svg viewBox="0 0 24 24" width="23" height="23"><path d="M5 3.5h3.2l1.6 4.3-2.2 1.4a11.5 11.5 0 006.2 6.2l1.4-2.2 4.3 1.6V18a2.5 2.5 0 01-2.5 2.5A16.5 16.5 0 012.5 6 2.5 2.5 0 015 3.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          </button>
         </header>
         <div class="messages-wrap">
           <div id="messages" class="messages"></div>
@@ -98,11 +104,29 @@
           </button>
         </div>
         <form id="composer" class="composer">
+          <button id="attach-btn" class="cbtn" type="button" aria-label="Прикрепить фото">
+            <svg viewBox="0 0 24 24" width="25" height="25"><path d="M20 11.5l-7.8 7.8a5 5 0 01-7.1-7.1l8.1-8.1a3.3 3.3 0 014.7 4.7l-8 8a1.7 1.7 0 01-2.4-2.4l7.4-7.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <input id="file-input" type="file" accept="image/*" multiple hidden>
           <textarea id="input" rows="1" placeholder="Сообщение" maxlength="4000" enterkeyhint="send"></textarea>
-          <button id="send-btn" class="send" type="submit" aria-label="Отправить" disabled>
+          <button id="mic-btn" class="send mic" type="button" aria-label="Записать голосовое">
+            <svg viewBox="0 0 24 24" width="22" height="22"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <button id="send-btn" class="send hidden" type="submit" aria-label="Отправить">
             <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3.4 20.4l17.5-7.5a1 1 0 000-1.8L3.4 3.6a1 1 0 00-1.4 1.1L4 11l9 1-9 1-2 6.3a1 1 0 001.4 1.1z" fill="currentColor"/></svg>
           </button>
         </form>
+        <div id="recorder" class="composer recorder hidden">
+          <button id="rec-cancel" class="cbtn danger" type="button" aria-label="Удалить запись">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          </button>
+          <span class="rec-dot"></span>
+          <span id="rec-time" class="rec-time">0:00</span>
+          <canvas id="rec-level" class="rec-level" width="300" height="40"></canvas>
+          <button id="rec-send" class="send" type="button" aria-label="Отправить голосовое">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3.4 20.4l17.5-7.5a1 1 0 000-1.8L3.4 3.6a1 1 0 00-1.4 1.1L4 11l9 1-9 1-2 6.3a1 1 0 001.4 1.1z" fill="currentColor"/></svg>
+          </button>
+        </div>
       </div>
     </main>
   </section>
@@ -141,6 +165,28 @@
       </div>
     </form>
   </dialog>
+
+  <!-- Просмотр фото -->
+  <div id="viewer" class="viewer hidden">
+    <img id="viewer-img" alt="">
+    <div class="viewer-bar">
+      <a id="viewer-open" class="viewer-btn" target="_blank" rel="noopener">Открыть оригинал</a>
+      <button id="viewer-close" class="viewer-btn" type="button">Закрыть</button>
+    </div>
+  </div>
+
+  <!-- Звонок -->
+  <div id="call" class="call hidden">
+    <video id="remote-video" class="remote-video hidden" autoplay playsinline></video>
+    <video id="local-video" class="local-video hidden" autoplay playsinline muted></video>
+    <audio id="remote-audio" autoplay></audio>
+    <div class="call-info">
+      <div id="call-avatar"></div>
+      <div id="call-name" class="call-name"></div>
+      <div id="call-status" class="call-status"></div>
+    </div>
+    <div id="call-actions" class="call-actions"></div>
+  </div>
 
   <div id="toast" class="toast hidden" role="status"></div>
 

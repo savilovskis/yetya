@@ -7,4 +7,7 @@
 window.YETYA_CONFIG = {
   SUPABASE_URL: "https://gknmtgwkclgkuqwztqdr.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_sRHrDI3FzUCaNEmT_QFupw_iuOcNQuD",
+  // Необязательно: свой TURN-сервер для звонков через «сложные» сети (мобильный интернет, рабочий Wi-Fi).
+  // Пример: ICE_SERVERS: [{ urls: "stun:stun.l.google.com:19302" },
+  //                       { urls: "turn:ВАШ_СЕРВЕР:3478", username: "ЛОГИН", credential: "ПАРОЛЬ" }],
 };
