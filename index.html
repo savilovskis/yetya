@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>Йетя</title>
+  <meta name="description" content="Йетя — простой мессенджер">
+  <meta name="theme-color" content="#b5755a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Йетя">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Экран: не настроено -->
+  <section id="setup" class="screen center hidden">
+    <div class="card">
+      <img src="icons/icon-192.png" alt="" class="logo">
+      <h1>Почти готово</h1>
+      <p>Открой файл <code>config.js</code> и вставь адрес и anon-ключ своего проекта Supabase. Подробно — в README.md.</p>
+    </div>
+  </section>
+
+  <!-- Экран: вход / регистрация -->
+  <section id="auth" class="screen center hidden">
+    <div class="card">
+      <img src="icons/icon-192.png" alt="" class="logo">
+      <h1>Йетя</h1>
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="login" type="button">Вход</button>
+        <button class="tab" data-tab="register" type="button">Регистрация</button>
+      </div>
+
+      <form id="login-form" class="form">
+        <input name="email" type="email" placeholder="Почта" autocomplete="email" required>
+        <input name="password" type="password" placeholder="Пароль" autocomplete="current-password" required minlength="6">
+        <button class="btn primary" type="submit">Войти</button>
+      </form>
+
+      <form id="register-form" class="form hidden">
+        <input name="name" type="text" placeholder="Имя" autocomplete="name" maxlength="60" required>
+        <input name="username" type="text" placeholder="ID (латиница, цифры, _)" autocomplete="username"
+               pattern="[a-zA-Z0-9_]{3,24}" maxlength="24" required autocapitalize="none" spellcheck="false">
+        <input name="email" type="email" placeholder="Почта" autocomplete="email" required>
+        <input name="password" type="password" placeholder="Пароль (от 6 символов)" autocomplete="new-password" required minlength="6">
+        <button class="btn primary" type="submit">Создать аккаунт</button>
+      </form>
+
+      <p id="auth-msg" class="msg" role="status"></p>
+    </div>
+  </section>
+
+  <!-- Основной экран -->
+  <section id="app" class="screen hidden">
+    <aside id="sidebar">
+      <header class="bar">
+        <button id="me-btn" class="avatar-btn" type="button" aria-label="Профиль"></button>
+        <div class="bar-title">Чаты</div>
+        <span id="conn" class="conn" title="Соединение"></span>
+      </header>
+      <div class="search">
+        <input id="search" type="search" placeholder="Поиск по ID или имени" autocomplete="off" autocapitalize="none" spellcheck="false">
+      </div>
+      <div id="search-results" class="list hidden"></div>
+      <div id="chat-list" class="list"></div>
+      <div id="empty-list" class="empty hidden">
+        <p>Пока нет чатов.<br>Найди друга по ID через поиск сверху.</p>
+      </div>
+    </aside>
+
+    <main id="chat">
+      <div id="chat-placeholder" class="empty">
+        <img src="icons/icon-192.png" alt="" class="logo big">
+        <p>Выбери чат слева</p>
+      </div>
+      <div id="chat-view" class="hidden">
+        <header class="bar">
+          <button id="back-btn" class="icon-btn" type="button" aria-label="Назад">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div id="peer-avatar"></div>
+          <div class="peer">
+            <div id="peer-name" class="peer-name"></div>
+            <div id="peer-status" class="peer-status"></div>
+          </div>
+        </header>
+        <div id="messages" class="messages"></div>
+        <form id="composer" class="composer">
+          <textarea id="input" rows="1" placeholder="Сообщение" maxlength="4000" enterkeyhint="send"></textarea>
+          <button id="send-btn" class="send" type="submit" aria-label="Отправить">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3.4 20.4l17.5-7.5a1 1 0 000-1.8L3.4 3.6a1 1 0 00-1.4 1.1L4 11l9 1-9 1-2 6.3a1 1 0 001.4 1.1z" fill="currentColor"/></svg>
+          </button>
+        </form>
+      </div>
+    </main>
+  </section>
+
+  <!-- Профиль -->
+  <dialog id="profile-dlg">
+    <form id="profile-form" method="dialog" class="form">
+      <h2>Профиль</h2>
+      <label class="avatar-edit">
+        <span id="profile-avatar"></span>
+        <input id="avatar-input" type="file" accept="image/*" hidden>
+        <span class="link">Сменить фото</span>
+      </label>
+      <label>Имя<input name="name" type="text" maxlength="60"></label>
+      <label>ID<input name="username" type="text" pattern="[a-zA-Z0-9_]{3,24}" maxlength="24" autocapitalize="none" spellcheck="false"></label>
+      <p class="hint" id="profile-email"></p>
+      <button id="notify-btn" class="btn" type="button">Включить уведомления</button>
+      <p class="hint" id="install-hint"></p>
+      <p id="profile-msg" class="msg" role="status"></p>
+      <div class="row">
+        <button id="logout-btn" class="btn danger" type="button">Выйти</button>
+        <span class="spacer"></span>
+        <button value="cancel" class="btn" type="submit" formnovalidate>Закрыть</button>
+        <button id="profile-save" class="btn primary" type="button">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>window.supabase || document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>')</script>
+  <script src="app.js"></script>
+</body>
+</html>
