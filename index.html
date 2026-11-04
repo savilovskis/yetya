@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Йетя</title>
   <meta name="description" content="Йетя — простой мессенджер">
-  <meta name="theme-color" content="#b5755a">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1d1a18" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -13,6 +14,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Йетя">
+  <meta name="format-detection" content="telephone=no">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -36,7 +38,7 @@
       </div>
 
       <form id="login-form" class="form">
-        <input name="email" type="email" placeholder="Почта" autocomplete="email" required>
+        <input name="email" type="email" placeholder="Почта" autocomplete="email" inputmode="email" required>
         <input name="password" type="password" placeholder="Пароль" autocomplete="current-password" required minlength="6">
         <button class="btn primary" type="submit">Войти</button>
       </form>
@@ -44,8 +46,8 @@
       <form id="register-form" class="form hidden">
         <input name="name" type="text" placeholder="Имя" autocomplete="name" maxlength="60" required>
         <input name="username" type="text" placeholder="ID (латиница, цифры, _)" autocomplete="username"
-               pattern="[a-zA-Z0-9_]{3,24}" maxlength="24" required autocapitalize="none" spellcheck="false">
-        <input name="email" type="email" placeholder="Почта" autocomplete="email" required>
+               pattern="[a-zA-Z0-9_]{3,24}" maxlength="24" required autocapitalize="none" autocorrect="off" spellcheck="false">
+        <input name="email" type="email" placeholder="Почта" autocomplete="email" inputmode="email" required>
         <input name="password" type="password" placeholder="Пароль (от 6 символов)" autocomplete="new-password" required minlength="6">
         <button class="btn primary" type="submit">Создать аккаунт</button>
       </form>
@@ -56,31 +58,32 @@
 
   <!-- Основной экран -->
   <section id="app" class="screen hidden">
-    <aside id="sidebar">
+    <aside id="sidebar" class="pane">
       <header class="bar">
         <button id="me-btn" class="avatar-btn" type="button" aria-label="Профиль"></button>
-        <div class="bar-title">Чаты</div>
-        <span id="conn" class="conn" title="Соединение"></span>
+        <div class="bar-title">Чаты <span id="conn" class="conn" title="Соединение"></span></div>
+        <button id="compose-btn" class="icon-btn always" type="button" aria-label="Новый чат">
+          <svg viewBox="0 0 24 24" width="24" height="24"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16v4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
       </header>
       <div class="search">
-        <input id="search" type="search" placeholder="Поиск по ID или имени" autocomplete="off" autocapitalize="none" spellcheck="false">
+        <svg class="search-ico" viewBox="0 0 24 24" width="18" height="18"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="search" type="search" placeholder="Поиск по ID или имени" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search">
       </div>
       <div id="search-results" class="list hidden"></div>
       <div id="chat-list" class="list"></div>
-      <div id="empty-list" class="empty hidden">
-        <p>Пока нет чатов.<br>Найди друга по ID через поиск сверху.</p>
-      </div>
     </aside>
 
-    <main id="chat">
+    <main id="chat" class="pane">
       <div id="chat-placeholder" class="empty">
         <img src="icons/icon-192.png" alt="" class="logo big">
         <p>Выбери чат слева</p>
       </div>
       <div id="chat-view" class="hidden">
         <header class="bar">
-          <button id="back-btn" class="icon-btn" type="button" aria-label="Назад">
-            <svg viewBox="0 0 24 24" width="24" height="24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <button id="back-btn" class="icon-btn back" type="button" aria-label="Назад">
+            <svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="back-badge" class="back-badge hidden"></span>
           </button>
           <div id="peer-avatar"></div>
           <div class="peer">
@@ -88,10 +91,15 @@
             <div id="peer-status" class="peer-status"></div>
           </div>
         </header>
-        <div id="messages" class="messages"></div>
+        <div class="messages-wrap">
+          <div id="messages" class="messages"></div>
+          <button id="down-btn" class="down-btn hidden" type="button" aria-label="Вниз">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
         <form id="composer" class="composer">
           <textarea id="input" rows="1" placeholder="Сообщение" maxlength="4000" enterkeyhint="send"></textarea>
-          <button id="send-btn" class="send" type="submit" aria-label="Отправить">
+          <button id="send-btn" class="send" type="submit" aria-label="Отправить" disabled>
             <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3.4 20.4l17.5-7.5a1 1 0 000-1.8L3.4 3.6a1 1 0 00-1.4 1.1L4 11l9 1-9 1-2 6.3a1 1 0 001.4 1.1z" fill="currentColor"/></svg>
           </button>
         </form>
@@ -99,9 +107,20 @@
     </main>
   </section>
 
+  <!-- Меню действий с сообщением -->
+  <div id="sheet" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-backdrop"></div>
+    <div class="sheet-panel">
+      <div id="sheet-preview" class="sheet-preview"></div>
+      <div id="sheet-actions" class="sheet-actions"></div>
+      <button class="sheet-cancel" type="button">Отмена</button>
+    </div>
+  </div>
+
   <!-- Профиль -->
   <dialog id="profile-dlg">
     <form id="profile-form" method="dialog" class="form">
+      <div class="grabber"></div>
       <h2>Профиль</h2>
       <label class="avatar-edit">
         <span id="profile-avatar"></span>
@@ -109,7 +128,7 @@
         <span class="link">Сменить фото</span>
       </label>
       <label>Имя<input name="name" type="text" maxlength="60"></label>
-      <label>ID<input name="username" type="text" pattern="[a-zA-Z0-9_]{3,24}" maxlength="24" autocapitalize="none" spellcheck="false"></label>
+      <label>ID<input name="username" type="text" pattern="[a-zA-Z0-9_]{3,24}" maxlength="24" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
       <p class="hint" id="profile-email"></p>
       <button id="notify-btn" class="btn" type="button">Включить уведомления</button>
       <p class="hint" id="install-hint"></p>
