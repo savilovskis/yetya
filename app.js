@@ -315,6 +315,7 @@
     }
 
     subscribeCalls();
+    getIceServers();
 
     const presence = sb.channel("online", { config: { presence: { key: S.me.id } } })
       .on("presence", { event: "sync" }, () => {
@@ -1106,10 +1107,33 @@
   //  Звонки (WebRTC). Сигналы (offer/answer/ICE) идут через Supabase Realtime,
   //  а сам звук и видео — напрямую между устройствами.
   // =====================================================================
-  const ICE_SERVERS = (cfg.ICE_SERVERS && cfg.ICE_SERVERS.length) ? cfg.ICE_SERVERS : [
+  const BASE_ICE = (cfg.ICE_SERVERS && cfg.ICE_SERVERS.length) ? cfg.ICE_SERVERS : [
     { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
     { urls: "stun:stun.cloudflare.com:3478" },
   ];
+  // TURN-сервер Metered (бесплатный тариф): временные логины берём по API-ключу из config.js
+  const meteredApp = String(cfg.METERED_APP || "").trim().replace(/^https?:\/\//, "").replace(/\.metered\.live.*$/, "").replace(/\/.*$/, "");
+  const meteredKey = String(cfg.METERED_API_KEY || "").trim();
+  const turnConfigured = () => !!(meteredApp && meteredKey) || BASE_ICE.some((x) => [].concat(x.urls).some((u) => /^turns?:/.test(u)));
+  let turnCache = null;
+  async function getIceServers() {
+    if (!meteredApp || !meteredKey) return BASE_ICE;
+    if (turnCache && turnCache.exp > Date.now()) return turnCache.list;
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 6000);
+      const r = await fetch(`https://${meteredApp}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(meteredKey)}`, { signal: ctrl.signal });
+      clearTimeout(t);
+      const list = await r.json();
+      if (r.ok && Array.isArray(list) && list.length) {
+        turnCache = { list: [...BASE_ICE, ...list], exp: Date.now() + 30 * 60e3 };
+        return turnCache.list;
+      }
+      console.warn("Metered TURN: неожиданный ответ", list);
+    } catch (e) { console.warn("Metered TURN недоступен:", e); }
+    return BASE_ICE;
+  }
+  const candType = (cand) => { const m = / typ (\w+)/.exec(typeof cand === "string" ? cand : (cand && cand.candidate) || ""); return m ? m[1] : null; };
   const CI = {
     hang: '<svg viewBox="0 0 24 24"><path d="M3 14.5c5-5 13-5 18 0l-1.8 2.6-3.7-1.2-.5-2.6a10 10 0 00-6 0l-.5 2.6-3.7 1.2z" fill="currentColor"/></svg>',
     phone: '<svg viewBox="0 0 24 24"><path d="M5 3.5h3.2l1.6 4.3-2.2 1.4a11.5 11.5 0 006.2 6.2l1.4-2.2 4.3 1.6V18a2.5 2.5 0 01-2.5 2.5A16.5 16.5 0 012.5 6 2.5 2.5 0 015 3.5z" fill="currentColor"/></svg>',
@@ -1170,12 +1194,16 @@
 
   function createPC() {
     const c = C;
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({ iceServers: c.ice || BASE_ICE });
+    c.localTypes = new Set(); c.remoteTypes = c.remoteTypes || new Set();
     c.pc = pc;
     c.local.getTracks().forEach((t) => pc.addTrack(t, c.local));
     // звонящий всегда открывает видеоканал — тогда показ экрана работает и в аудиозвонке
     if (c.role === "caller" && !c.local.getVideoTracks().length) pc.addTransceiver("video", { direction: "sendrecv" });
-    pc.onicecandidate = (e) => { if (e.candidate && C === c) signal(c.peer.id, { type: "ice", callId: c.callId, candidate: e.candidate.toJSON() }).catch(() => {}); };
+    pc.onicecandidate = (e) => {
+      if (e.candidate) { const t = candType(e.candidate); if (t) c.localTypes.add(t); }
+      if (e.candidate && C === c) signal(c.peer.id, { type: "ice", callId: c.callId, candidate: e.candidate.toJSON() }).catch(() => {});
+    };
     pc.ontrack = (e) => {
       if (C !== c) return;
       if (!c.remote.getTracks().includes(e.track)) c.remote.addTrack(e.track);
@@ -1202,9 +1230,16 @@
         c.dcTimer = setTimeout(() => { if (C === c && pc.connectionState !== "connected") hangup(); }, 12000);
       } else if (st === "failed") {
         signal(c.peer.id, { type: "end", callId: c.callId }).catch(() => {});
-        endCall(c.connectedAt ? "ended" : "failed", c.connectedAt ? "Связь потеряна" : "Не удалось соединиться. Возможно, нужен TURN-сервер — см. README");
+        console.warn("Звонок не соединился. Мои кандидаты:", [...c.localTypes], "собеседника:", [...c.remoteTypes], "TURN:", turnConfigured());
+        endCall(c.connectedAt ? "ended" : "failed", c.connectedAt ? "Связь потеряна" : failReason(c));
       }
     };
+  }
+  function failReason(c) {
+    const hasRelay = c.localTypes.has("relay");
+    if (!turnConfigured()) return "Не удалось соединиться напрямую. Нужен TURN-сервер — впиши его в config.js (инструкция в README)";
+    if (!hasRelay) return "TURN-сервер недоступен из этой сети. Попробуй Wi-Fi вместо мобильного интернета (или наоборот) либо выключи VPN";
+    return "Не удалось соединиться. Попробуй позвонить ещё раз или сменить сеть";
   }
   async function flushIce() {
     const c = C;
@@ -1226,6 +1261,8 @@
     }
     if (C !== c) { c.local.getTracks().forEach((t) => t.stop()); return; }
     attachLocal();
+    c.ice = await getIceServers();
+    if (C !== c) return;
     createPC();
     await c.pc.setLocalDescription(await c.pc.createOffer());
     const ld = c.pc.localDescription;
@@ -1276,6 +1313,8 @@
         break;
       case "ice":
         if (c && c.callId === p.callId && p.candidate) {
+          c.remoteTypes = c.remoteTypes || new Set();
+          { const t = candType(p.candidate); if (t) c.remoteTypes.add(t); }
           if (c.pc && c.pc.remoteDescription) c.pc.addIceCandidate(p.candidate).catch(() => {});
           else c.pendingIce.push(p.candidate);
         }
@@ -1315,6 +1354,8 @@
     }
     if (C !== c) { c.local.getTracks().forEach((t) => t.stop()); return; }
     attachLocal();
+    c.ice = await getIceServers();
+    if (C !== c) return;
     createPC();
     await c.pc.setRemoteDescription(c.offer);
     c.pc.getTransceivers().forEach((t) => {

@@ -7,7 +7,11 @@
 window.YETYA_CONFIG = {
   SUPABASE_URL: "https://gknmtgwkclgkuqwztqdr.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_sRHrDI3FzUCaNEmT_QFupw_iuOcNQuD",
-  // Необязательно: свой TURN-сервер для звонков через «сложные» сети (мобильный интернет, рабочий Wi-Fi).
-  // Пример: ICE_SERVERS: [{ urls: "stun:stun.l.google.com:19302" },
-  //                       { urls: "turn:ВАШ_СЕРВЕР:3478", username: "ЛОГИН", credential: "ПАРОЛЬ" }],
+  // TURN-сервер для звонков (нужен, чтобы звонки проходили через мобильный интернет и VPN).
+  // Бесплатно: зарегистрируйся на https://dashboard.metered.ca/signup, создай приложение
+  // и вставь сюда его имя (то, что перед .metered.live) и API Key. Подробно — в README.
+  METERED_APP: "",
+  METERED_API_KEY: "",
+  // Или свой сервер вручную:
+  // ICE_SERVERS: [{ urls: "turn:ВАШ_СЕРВЕР:3478", username: "ЛОГИН", credential: "ПАРОЛЬ" }],
 };
