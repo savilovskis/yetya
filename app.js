@@ -1117,6 +1117,7 @@
     micOff: '<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     cam: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="3" fill="currentColor"/><path d="M15.5 10.5l5-3v9l-5-3z" fill="currentColor"/></svg>',
     camOff: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 10.5l5-3v9l-5-3zM3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    screen: '<svg viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 21h8M12 17v4M12 14V8M9 10.5l3-3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     flip: '<svg viewBox="0 0 24 24"><path d="M4 9a8 8 0 0114-3l2 2M20 15a8 8 0 01-14 3l-2-2M20 4v4h-4M4 20v-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   };
 
@@ -1172,12 +1173,14 @@
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     c.pc = pc;
     c.local.getTracks().forEach((t) => pc.addTrack(t, c.local));
-    if (c.video && !c.local.getVideoTracks().length) pc.addTransceiver("video", { direction: "recvonly" });
+    // звонящий всегда открывает видеоканал — тогда показ экрана работает и в аудиозвонке
+    if (c.role === "caller" && !c.local.getVideoTracks().length) pc.addTransceiver("video", { direction: "sendrecv" });
     pc.onicecandidate = (e) => { if (e.candidate && C === c) signal(c.peer.id, { type: "ice", callId: c.callId, candidate: e.candidate.toJSON() }).catch(() => {}); };
     pc.ontrack = (e) => {
       if (C !== c) return;
       if (!c.remote.getTracks().includes(e.track)) c.remote.addTrack(e.track);
       e.track.onunmute = attachRemote;
+      e.track.onmute = attachRemote;
       attachRemote();
     };
     pc.onconnectionstatechange = () => {
@@ -1280,6 +1283,14 @@
       case "decline":
         if (c && c.callId === p.callId) endCall("declined", "Звонок отклонён");
         break;
+      case "screen":
+        if (c && c.callId === p.callId) {
+          c.remoteScreen = !!p.on;
+          $("#call").classList.toggle("remote-screen", c.remoteScreen);
+          setScreenBadge(c.remoteScreen ? `${c.peer.name || c.peer.username} показывает экран` : "");
+          attachRemote();
+        }
+        break;
       case "busy":
         if (c && c.callId === p.callId) endCall("busy", "Занято — собеседник в другом звонке");
         break;
@@ -1306,6 +1317,9 @@
     attachLocal();
     createPC();
     await c.pc.setRemoteDescription(c.offer);
+    c.pc.getTransceivers().forEach((t) => {
+      if (t.receiver.track && t.receiver.track.kind === "video" && t.direction !== "sendrecv" && !t.stopped) t.direction = "sendrecv";
+    });
     await flushIce();
     await c.pc.setLocalDescription(await c.pc.createAnswer());
     const ld = c.pc.localDescription;
@@ -1333,6 +1347,8 @@
     stopTone();
     try { c.pc && c.pc.close(); } catch (_) {}
     c.local && c.local.getTracks().forEach((t) => t.stop());
+    if (c.screen) { try { c.screen.stop(); } catch (_) {} }
+    $("#call").classList.remove("remote-screen", "sharing"); setScreenBadge("");
     setTimeout(() => { if (!C || C.peer.id !== c.peer.id) dropPeerChannel(c.peer.id); }, 2000);
     // запись о звонке в чате пишет тот, кто звонил
     if (c.role === "caller" && status) {
@@ -1367,8 +1383,15 @@
   const setCallStatus = (t) => { $("#call-status").textContent = t; };
   function attachLocal() {
     const c = C;
-    if (!c || !c.video || !c.local.getVideoTracks().length) return;
-    const lv = $("#local-video"); lv.srcObject = c.local; show(lv); lv.play().catch(() => {});
+    const lv = $("#local-video");
+    if (!c) return;
+    if (c.screen) {
+      lv.srcObject = new MediaStream([c.screen]); lv.style.transform = "none"; show(lv); lv.play().catch(() => {});
+      return;
+    }
+    if (!c.video || !c.local.getVideoTracks().length) { show(lv, false); return; }
+    lv.style.transform = c.facing === "user" ? "" : "none";
+    lv.srcObject = c.local; show(lv, !c.camOff); lv.play().catch(() => {});
   }
   function attachRemote() {
     const c = C;
@@ -1376,12 +1399,16 @@
     const ra = $("#remote-audio");
     if (ra.srcObject !== c.remote) ra.srcObject = c.remote;
     ra.play().catch(() => {});
-    const vt = c.remote.getVideoTracks().find((t) => t.readyState === "live");
-    if (vt) {
-      const rv = $("#remote-video"); rv.muted = true;
+    const vt = c.remote.getVideoTracks().find((t) => t.readyState === "live" && (!t.muted || c.remoteScreen));
+    const rv = $("#remote-video");
+    const want = !!vt && (c.video || c.remoteScreen);
+    if (want) {
+      rv.muted = true;
       if (rv.srcObject !== c.remote) rv.srcObject = c.remote;
-      show(rv); $("#call").classList.add("has-video"); rv.play().catch(() => {});
+      rv.play().catch(() => {});
     }
+    show(rv, want);
+    $("#call").classList.toggle("has-video", want || (!!c.screen));
   }
   function cact(icon, label, cls, fn) {
     const b = el("button", "cact " + (cls || "")); b.type = "button";
@@ -1403,21 +1430,78 @@
     if (c.video) {
       btns.push(cact(c.camOff ? CI.camOff : CI.cam, c.camOff ? "Камера выкл." : "Камера", c.camOff ? "on" : "", () => {
         c.camOff = !c.camOff; c.local?.getVideoTracks().forEach((t) => (t.enabled = !c.camOff));
-        show($("#local-video"), !c.camOff); renderCallActions();
+        attachLocal(); renderCallActions();
       }));
       if (isTouch()) btns.push(cact(CI.flip, "Повернуть", "", flipCamera));
     }
+    if (canShareScreen() && c.pc) btns.push(cact(CI.screen, c.screen ? "Остановить показ" : "Экран", c.screen ? "on" : "", toggleScreen));
     btns.push(cact(CI.hang, "Завершить", "red", hangup));
     box.replaceChildren(...btns);
   }
+  // ---- демонстрация экрана ----
+  const canShareScreen = () => !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) && !isTouch();
+  const videoSender = (c) => {
+    const list = c.pc.getTransceivers().filter((x) => x.receiver.track && x.receiver.track.kind === "video" && !x.stopped);
+    const t = list.find((x) => x.mid != null) || list[0];
+    return t && t.sender;
+  };
+  function setScreenBadge(text) {
+    let b = $("#screen-badge");
+    if (!b) { b = el("div", "screen-badge"); b.id = "screen-badge"; $("#call").append(b); }
+    b.textContent = text; show(b, !!text);
+  }
+  async function toggleScreen() {
+    const c = C;
+    if (!c || !c.pc) return;
+    if (c.screen) return stopScreen();
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 } }, audio: false });
+    } catch (e) {
+      if (e && e.name !== "NotAllowedError" && e.name !== "AbortError") toast("Не удалось начать показ экрана");
+      return;
+    }
+    if (C !== c) { stream.getTracks().forEach((t) => t.stop()); return; }
+    const track = stream.getVideoTracks()[0];
+    try { track.contentHint = "detail"; } catch (_) {}
+    const sender = videoSender(c);
+    if (!sender) { track.stop(); return toast("Показ экрана недоступен в этом звонке"); }
+    try { await sender.replaceTrack(track); }
+    catch (_) { track.stop(); return toast("Не удалось начать показ экрана"); }
+    // повыше качество для текста на экране
+    try {
+      const prm = sender.getParameters();
+      if (prm.encodings && prm.encodings[0]) { prm.encodings[0].maxBitrate = 1_500_000; await sender.setParameters(prm); }
+    } catch (_) {}
+    c.screen = track;
+    track.onended = () => { if (C === c && c.screen === track) stopScreen(); }; // «Закрыть доступ» в панели браузера
+    signal(c.peer.id, { type: "screen", callId: c.callId, on: true }).catch(() => {});
+    $("#call").classList.add("sharing");
+    attachLocal(); attachRemote(); renderCallActions();
+    toast("Идёт показ экрана");
+  }
+  async function stopScreen() {
+    const c = C;
+    if (!c || !c.screen) return;
+    const track = c.screen;
+    c.screen = null;
+    const cam = c.local && c.local.getVideoTracks()[0];
+    try { const s = videoSender(c); if (s) await s.replaceTrack(cam || null); } catch (_) {}
+    track.stop();
+    signal(c.peer.id, { type: "screen", callId: c.callId, on: false }).catch(() => {});
+    $("#call").classList.remove("sharing");
+    attachLocal(); attachRemote(); renderCallActions();
+  }
+
   async function flipCamera() {
     const c = C;
     if (!c || !c.pc || !c.local) return;
+    if (c.screen) return toast("Сначала останови показ экрана");
     c.facing = c.facing === "user" ? "environment" : "user";
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: c.facing } });
       const nt = s.getVideoTracks()[0];
-      const sender = c.pc.getSenders().find((x) => x.track && x.track.kind === "video");
+      const sender = videoSender(c);
       if (sender) await sender.replaceTrack(nt);
       c.local.getVideoTracks().forEach((t) => { t.stop(); c.local.removeTrack(t); });
       c.local.addTrack(nt);

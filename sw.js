@@ -1,6 +1,6 @@
 // Service worker Йети: офлайн-оболочка приложения и клики по уведомлениям.
 // При изменении файлов приложения увеличь номер версии — старый кэш удалится.
-const CACHE = "yetya-v4";
+const CACHE = "yetya-v5";
 const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {

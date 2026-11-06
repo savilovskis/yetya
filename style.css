@@ -435,3 +435,14 @@ body.in-saved .call-btn { display: none !important; }
 .cact.red span.ci { background: #e5484d; }
 .cact.green span.ci { background: #30a46c; }
 .cact svg { width: 28px; height: 28px; }
+
+/* демонстрация экрана */
+.call.remote-screen .remote-video { object-fit: contain; background: #000; }
+.call.sharing .local-video { width: 200px; aspect-ratio: 16/10; object-fit: contain; background: #000; transform: none; }
+.screen-badge {
+  position: absolute; z-index: 3; top: calc(16px + var(--safe-top)); left: 16px;
+  background: rgba(0,0,0,.55); color: #fff; font-size: 13px; padding: 6px 12px; border-radius: 10px;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.call.remote-screen .call-info { margin-bottom: 8px; }
+.call.remote-screen .call-name { font-size: 18px; }
