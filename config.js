@@ -10,8 +10,8 @@ window.YETYA_CONFIG = {
   // TURN-сервер для звонков (нужен, чтобы звонки проходили через мобильный интернет и VPN).
   // Бесплатно: зарегистрируйся на https://dashboard.metered.ca/signup, создай приложение
   // и вставь сюда его имя (то, что перед .metered.live) и API Key. Подробно — в README.
-  METERED_APP: "",
-  METERED_API_KEY: "",
+  METERED_APP: "yetya",
+  METERED_API_KEY: "94712472de2367eb758c06c9b9f5362da58e",
   // Или свой сервер вручную:
   // ICE_SERVERS: [{ urls: "turn:ВАШ_СЕРВЕР:3478", username: "ЛОГИН", credential: "ПАРОЛЬ" }],
 };
